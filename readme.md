@@ -1,23 +1,12 @@
 # Jeu Concours - Infrastructure
 
-## Description
-Ce repository contient toute l'infrastructure nécessaire pour le déploiement et la gestion du projet **Jeu Concours**. Il inclut la configuration des conteneurs Docker, l'automatisation avec Ansible et les scripts de déploiement pour différents environnements (développement, préproduction, production).
+## 📌 Description
+Ce repository contient l'infrastructure DevOps nécessaire pour le déploiement et la gestion du projet **Jeu Concours**. Il inclut la configuration Docker Compose pour le backend Symfony et le frontend Angular, ainsi que la mise en place des pipelines CI/CD avec Jenkins.
 
-## Structure du repository
+## 📁 Structure du Repository
 
 ```
-/jeu-concours-infra
-├── ansible/
-│   ├── inventory/
-│   │   └── hosts
-│   ├── playbooks/
-│   │   ├── setup_vps.yml
-│   │   └── deploy.yml
-│   └── roles/
-│       ├── docker/
-│       ├── jenkins/
-│       ├── monitoring/
-│       └── database/
+/infrastructure
 ├── docker-compose/
 │   ├── dev/
 │   │   └── docker-compose.yml
@@ -25,6 +14,20 @@ Ce repository contient toute l'infrastructure nécessaire pour le déploiement e
 │   │   └── docker-compose.yml
 │   └── prod/
 │       └── docker-compose.yml
+├── ci-cd/
+│   ├── jenkins/
+│   │   ├── jenkins_home/             # Volume Jenkins
+│   │   ├── Dockerfile                 # Image personnalisée pour Jenkins
+│   │   ├── init.groovy.d/             # Configuration initiale
+│   │   └── plugins.txt                # Plugins Jenkins
+│   ├── sonarqube/
+│   │   └── sonar.properties            # Configuration SonarQube
+├── monitoring/
+│   ├── grafana/
+│   │   ├── dashboards/                 # Dashboards personnalisés
+│   │   └── grafana.ini                  # Configuration Grafana
+│   ├── prometheus/
+│   │   └── prometheus.yml               # Configuration Prometheus
 ├── scripts/
 │   ├── backup/
 │   │   └── backup_db.sh
@@ -37,61 +40,74 @@ Ce repository contient toute l'infrastructure nécessaire pour le déploiement e
 └── README.md
 ```
 
-## Technologies utilisées
-- **Docker & Docker Compose** : Conteneurisation des services
-- **Ansible** : Automatisation de l'installation et de la configuration du serveur
-- **Jenkins** : CI/CD pour l'automatisation du déploiement
-- **SonarQube** : Analyse de qualité du code
-- **Prometheus & Grafana** : Monitoring des services
-- **MySQL** : Base de données pour l'application
+## 🛠 Technologies Utilisées
 
-## Installation et configuration
-### Prérequis
-- Un serveur VPS (ex. Contabo) avec un accès SSH
-- Docker et Docker Compose installés
-- Ansible installé sur votre machine locale
+- **Docker & Docker Compose** : Conteneurisation et orchestration des services  
+- **Jenkins** : CI/CD pour le déploiement automatique du frontend et du backend  
+- **SonarQube** : Analyse de la qualité du code  
+- **Prometheus & Grafana** : Monitoring des services  
+- **MySQL** : Base de données du backend Symfony  
 
-### Installation de l'infrastructure
-1. **Configurer l'accès SSH à votre serveur :**
+## 🚀 Installation et Configuration
+
+### ✅ Prérequis
+
+- Un serveur VPS (ex. Contabo) avec accès SSH  
+- Docker et Docker Compose installés  
+- Jenkins installé pour les pipelines CI/CD  
+
+### ⚙️ Déploiement des Services
+
+1. **Connexion au VPS :**  
    ```sh
    ssh user@95.111.240.167
    ```
-2. **Exécuter le playbook Ansible pour l'installation de Docker et des dépendances :**
+
+2. **Déploiement de l'environnement souhaité :**  
    ```sh
-   ansible-playbook -i ansible/inventory/hosts ansible/playbooks/setup_vps.yml
-   ```
-3. **Déployer l'environnement de développement :**
-   ```sh
-   cd docker-compose/dev
-   docker-compose up -d
+   cd infrastructure/docker-compose/dev  # Remplacez par preprod ou prod si nécessaire
+   docker compose up -d
    ```
 
-## Déploiement CI/CD avec Jenkins
-1. **Créer un job Jenkins pour chaque service (frontend, backend)**
-2. **Configurer les webhooks GitHub pour déclencher les pipelines CI/CD**
-3. **Exécuter le pipeline Jenkins** pour tester, construire et déployer les conteneurs
+3. **Vérification des logs :**  
+   ```sh
+   docker compose logs -f
+   ```
 
-## Monitoring et Logs
-- **Accéder à Grafana :** `http://95.111.240:3000`
-- **Accéder à Prometheus :** `http://95.111.240:9090`
-- **Consulter les logs des conteneurs :**
-  ```sh
-  docker logs -f nom_du_conteneur
-  ```
+## 🔄 CI/CD avec Jenkins
 
-## Backup et Restauration
-- **Sauvegarde de la base de données :**
-  ```sh
-  bash scripts/backup/backup_db.sh
-  ```
-- **Restauration de la base de données :**
-  ```sh
-  bash scripts/restore/restore_db.sh backup_file.sql
-  ```
+Chaque repository (frontend et backend) contient son propre `Jenkinsfile` pour automatiser les étapes suivantes :  
 
-## Contribution
-Les contributions sont les bienvenues ! Veuillez suivre les bonnes pratiques Git et proposer vos modifications via une Pull Request.
+1. **Clonage du code depuis GitHub**  
+2. **Exécution des tests unitaires et SonarQube**  
+3. **Build et génération de l’image Docker**  
+4. **Push de l’image sur un registry (ex: Docker Hub)**  
+5. **Déploiement via Docker Compose sur le VPS**  
 
-## Licence
-Ce projet est purement fictif et académique.
+## 📊 Monitoring et Logs
 
+- **Accéder à Grafana :** `http://95.111.240.167:3000`  
+- **Accéder à Prometheus :** `http://95.111.240.167:9090`  
+- **Consulter les logs d'un conteneur :**  
+   ```sh
+   docker logs -f nom_du_conteneur
+   ```
+
+## 🛑 Backup & Restauration
+
+- **Sauvegarde de la base de données :**  
+   ```sh
+   bash scripts/backup/backup_db.sh
+   ```
+- **Restauration de la base de données :**  
+   ```sh
+   bash scripts/restore/restore_db.sh backup_file.sql
+   ```
+
+## 🤝 Contribution
+
+Les contributions sont bienvenues ! Créez une Pull Request en suivant les bonnes pratiques Git  🚀.  
+
+---
+
+💡 IMPORTANT : Ceprojet est fictif et académique !
