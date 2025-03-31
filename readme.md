@@ -9,9 +9,9 @@ Ce repository contient l'infrastructure DevOps nécessaire pour le déploiement 
 /infrastructure
 ├── docker-compose/
 │   ├── dev/
-│   │   └── docker-compose.yml
+│   │   └── docker-compose.dev.yml
 │   ├── preprod/
-│   │   └── docker-compose.yml
+│   │   └── docker-compose.preprod.yml
 │   └── prod/
 │       └── docker-compose.yml
 ├── ci-cd/
