@@ -1,7 +1,7 @@
 # Définition des chemins des fichiers docker-compose
-DOCKER_COMPOSE_DEV=infrastructure/docker-compose/dev/docker-compose.yml
-DOCKER_COMPOSE_PREPROD=infrastructure/docker-compose/preprod/docker-compose.yml
-DOCKER_COMPOSE_PROD=infrastructure/docker-compose/prod/docker-compose.yml
+DOCKER_COMPOSE_DEV=infrastructure/docker-compose/dev/docker-compose.dev.yml
+DOCKER_COMPOSE_PREPROD=infrastructure/docker-compose/preprod/docker-compose.preprod.yml
+DOCKER_COMPOSE_PROD=infrastructure/docker-compose/prod/docker-compos.prod.yml
 
 # Commandes pour l'environnement DEV
 dev up:
