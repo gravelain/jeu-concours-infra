@@ -1,0 +1,191 @@
+services:
+  # Reverse Proxy - Traefik
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --providers.docker
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=admin@tiptop.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./infrastructure/reverse-proxy/letsencrypt:/letsencrypt
+    networks:
+      - tiptop-network
+
+  # Backend
+  backend:
+    build: ../backend
+    ports:
+      - "5001:5000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    labels:
+      - "traefik.http.routers.backend.rule=Host(`api.tiptop.com`)"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+    networks:
+      - tiptop-network
+    volumes:
+      - backend_logs:/app/logs  # Persistance des logs du backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+
+  # Frontend
+  frontend:
+    build: ../frontend
+    ports:
+      - "${FRONTEND_PORT}:80"
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`tiptop.com`)"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+    networks:
+      - tiptop-network
+    volumes:
+      - frontend_build_output:/usr/share/nginx/html  # Persistance des fichiers frontend
+
+  # MySQL Database (Main)
+  mysql:
+    image: mysql:8.0.33
+    platform: linux/x86_64
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persistance des données MySQL
+      - mysql_logs:/var/log/mysql  # Persistance des logs MySQL
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3307:3306"
+    networks:
+      - tiptop-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=mysql"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+
+  # Monitoring Services (Grafana, Prometheus, Loki, Alertmanager)
+  grafana:
+    image: grafana/grafana-oss:9.5.6
+    ports:
+      - "3002:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana  # Persistance des dashboards Grafana
+    networks:
+      - tiptop-network
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus  # Persistance des données de Prometheus
+    networks:
+      - tiptop-network
+
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    volumes:
+      - ./infrastructure/monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml
+    networks:
+      - tiptop-network
+
+  loki:
+    image: grafana/loki:2.8.2
+    volumes:
+      - ./infrastructure/monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+    networks:
+      - tiptop-network
+
+  # CI/CD with Jenkins
+  jenkins:
+    build: ./infrastructure/ci-cd/jenkins
+    image: tiptop/jenkins-custom:latest
+    user: root
+    volumes:
+      - jenkins_data:/var/jenkins_home  # Persistance des données Jenkins
+      - jenkins_logs:/var/jenkins_home/logs # Persistance des logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+    networks:
+      - tiptop-network
+
+  # SonarQube (Static Code Analysis)
+  sonarqube:
+    image: sonarqube:latest
+    depends_on:
+      postgres-sonar:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      SONAR_JDBC_URL: jdbc:mysql://mysql-sonar:3306/sonar  # Utilisation de MySQL pour SonarQube
+      SONAR_JDBC_USERNAME: ${SONAR_JDBC_USERNAME}
+      SONAR_JDBC_PASSWORD: ${SONAR_JDBC_PASSWORD}
+    ports:
+      - "9000:9000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarqube.rule=Host(`sonarqube.tiptop.com`)"
+      - "traefik.http.routers.sonarqube.entrypoints=websecure"
+      - "traefik.http.routers.sonarqube.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
+    networks:
+      - tiptop-network
+
+  # Database for SonarQube
+  mysql-sonar:
+    image: mysql:8.0.33
+    container_name: mysql-sonar
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: sonar
+      MYSQL_USER: ${SONAR_JDBC_USERNAME}
+      MYSQL_PASSWORD: ${SONAR_JDBC_PASSWORD}
+    volumes:
+      - sonar_db_data:/var/lib/mysql  # Persistance des données MySQL pour SonarQube
+    networks:
+      - tiptop-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=mysql-sonar"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+
+volumes:
+  # Volumes pour MySQL
+  mysql_data: # Persistance des données MySQL
+  mysql_logs: # Persistance des logs MySQL
+  sonar_db_data: # Persistance des données MySQL pour SonarQube
+  # Volumes pour Grafana et Prometheus
+  grafana_data: # Persistance des configurations et des dashboards de Grafana
+  prometheus_data: # Persistance des métriques et des configurations de Prometheus
+  jenkins_data: # Persistance des données de Jenkins (Jobs, plugins, etc.)
+  jenkins_logs: # Persister les logs de jenkins
+  # Volumes supplémentaires pour le frontend et le backend
+  frontend_build_output: # Pour persister les fichiers générés par le frontend
+  backend_logs: # Pour persister les logs du backend
+
+networks:
+  tiptop-network:
+    driver: bridge
